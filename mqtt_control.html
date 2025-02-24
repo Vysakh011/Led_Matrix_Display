@@ -16,19 +16,20 @@
             padding: 0;
         }
 
-        /* Main Container */
+        /* Main Container (Now Responsive) */
         .container {
             background: white;
             color: black;
-            width: 40%;
-            margin: 50px auto;
+            max-width: 90%;  /* Mobile-friendly */
+            width: 400px;  /* Default width */
+            margin: 30px auto;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
 
         h1 {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 10px;
         }
 
@@ -36,14 +37,13 @@
             font-weight: bold;
         }
 
-        /* Form Styling */
+        /* Input & Buttons */
         #message {
-            width: calc(100% - 22px);
+            width: calc(100% - 20px);
             padding: 10px;
             margin-top: 10px;
             border: 2px solid #ccc;
             border-radius: 5px;
-            display: block;
             text-align: center;
         }
 
@@ -54,12 +54,12 @@
             border: none;
             cursor: pointer;
             border-radius: 5px;
+            font-size: 16px;
         }
 
         #sendButton {
             background: #3b82f6;
             color: white;
-            font-size: 16px;
         }
 
         #sendButton:hover {
@@ -69,7 +69,6 @@
         #clearButton {
             background: #f44336;
             color: white;
-            font-size: 16px;
         }
 
         #clearButton:hover {
@@ -99,7 +98,7 @@
             background: #f9f9f9;
         }
 
-        /* Logout Button Fix */
+        /* Responsive Logout Button */
         .logout-btn {
             background: red;
             color: white;
@@ -107,18 +106,41 @@
             bottom: 20px;
             right: 20px;
             font-size: 14px;
-            padding: 8px 15px;
+            padding: 10px 15px;
             border-radius: 5px;
             border: none;
             cursor: pointer;
-            width: auto; /* Fix: Remove full-width stretch */
-            display: inline-block; /* Ensures it doesn't stretch */
+            display: inline-block;
         }
 
         .logout-btn:hover {
             background: darkred;
         }
 
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .container {
+                max-width: 95%;
+                width: auto;
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            button {
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            .logout-btn {
+                font-size: 12px;
+                padding: 8px 12px;
+                bottom: 15px;
+                right: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -150,7 +172,7 @@
         </table>
     </div>
 
-    <!-- Small Logout Button -->
+    <!-- Logout Button -->
     <button id="logoutButton" class="logout-btn">Logout</button>
 
     <script>
