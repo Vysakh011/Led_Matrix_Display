@@ -99,23 +99,26 @@
             background: #f9f9f9;
         }
 
-        /* Small Logout Button */
+        /* Logout Button Fix */
         .logout-btn {
             background: red;
             color: white;
             position: fixed;
             bottom: 20px;
             right: 20px;
-            font-size: 12px;
-            padding: 5px 10px;
+            font-size: 14px;
+            padding: 8px 15px;
             border-radius: 5px;
             border: none;
             cursor: pointer;
+            width: auto; /* Fix: Remove full-width stretch */
+            display: inline-block; /* Ensures it doesn't stretch */
         }
 
         .logout-btn:hover {
             background: darkred;
         }
+
     </style>
 </head>
 <body>
@@ -176,17 +179,21 @@
             });
         });
 
-        // Handle incoming sensor messages (overwrites previous data)
+        // Handle incoming sensor messages
         client.on('message', function (topic, message) {
             if (topic === sensorTopic) {
                 try {
                     const data = JSON.parse(message.toString());
 
-                    // Overwriting the existing sensor data
-                    document.getElementById('temp').innerText = data.temperature + " °C";
-                    document.getElementById('pressure').innerText = data.pressure + " hPa";
-                    document.getElementById('altitude').innerText = data.altitude + " m";
-                    document.getElementById('condition').innerText = data.condition;
+                    // Log received data
+                    console.log("Received Sensor Data:", data);
+
+                    // Update sensor values
+                    document.getElementById('temp').innerText = data.temperature ? `${data.temperature} °C` : "--";
+                    document.getElementById('pressure').innerText = data.pressure ? `${data.pressure} hPa` : "--";
+                    document.getElementById('altitude').innerText = data.altitude ? `${data.altitude} m` : "--";
+                    document.getElementById('condition').innerText = data.condition || "--";
+
                 } catch (error) {
                     console.error("Error parsing sensor data:", error);
                 }
