@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Control & Sensor Data</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> <!-- Include MQTT.js -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: white;
+        }
+        .container {
+            background: white;
+            color: black;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .clear-btn {
+            background: #ff5722;
+        }
+        .clear-btn:hover {
+            background: #e64a19;
+        }
+        .logout-btn {
+            background: red;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+        }
+        table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+            background: #f9f9f9;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Control NodeMCU via MQTT</h1>
+        
+        <form id="mqttForm">
+            <label for="message">Enter Message:</label>
+            <input type="text" id="message" name="message" required>
+            <button type="submit">Send Message</button>
+        </form>
+        
+        <button id="clearButton" class="clear-btn">CLEAR</button>
+        
+        <h2>Sensor Data</h2>
+        <table>
+            <tr>
+                <th>Temperature (°C)</th>
+                <th>Pressure (hPa)</th>
+                <th>Altitude (m)</th>
+                <th>Condition</th>
+            </tr>
+            <tr>
+                <td id="temp">--</td>
+                <td id="pressure">--</td>
+                <td id="altitude">--</td>
+                <td id="condition">--</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Logout Button -->
+    <button id="logoutButton" class="logout-btn">Logout</button>
+
+    <script>
+        // Check if the user is logged in
+        if (!localStorage.getItem('loggedInUser')) {
+            window.location.href = 'index.html'; // Redirect if not logged in
+        }
+
+        // MQTT Configuration
+        const brokerUrl = "wss://broker.hivemq.com:8884/mqtt"; // WebSocket connection
+        const clientId = "test569ttgg";  // Unique Client ID
+        const commandTopic = "ece/diFJBNOUIFOVSKJIGWIGJ"; // Topic for commands
+        const sensorTopic = "ece/sensorDataujndubd"; // Topic for sensor data
+
+        // Create MQTT client
+        const client = mqtt.connect(brokerUrl, { clientId: clientId, clean: true });
+
+        client.on('connect', function () {
+            console.log('Connected to MQTT broker');
+            client.subscribe(sensorTopic, function (err) {
+                if (err) {
+                    console.error('Failed to subscribe:', err);
+                } else {
+                    console.log(`Subscribed to ${sensorTopic}`);
+                }
+            });
+        });
+
+        // Handle incoming sensor messages
+        client.on('message', function (topic, message) {
+            if (topic === sensorTopic) {
+                try {
+                    const data = JSON.parse(message.toString());
+                    document.getElementById('temp').innerText = data.temperature + " °C";
+                    document.getElementById('pressure').innerText = data.pressure + " hPa";
+                    document.getElementById('altitude').innerText = data.altitude + " m";
+                    document.getElementById('condition').innerText = data.condition;
+                } catch (error) {
+                    console.error("Error parsing sensor data:", error);
+                }
+            }
+        });
+
+        // Form submission to send messages
+        document.getElementById('mqttForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const message = document.getElementById('message').value;
+            if (message.trim() !== "") {
+                console.log(`Publishing message: "${message}" to topic: ${commandTopic}`);
+                client.publish(commandTopic, message, { qos: 0, retain: false }, function (error) {
+                    if (error) {
+                        console.error('Error publishing message:', error);
+                    } else {
+                        console.log('Message sent successfully');
+                    }
+                });
+            }
+        });
+
+        // CLEAR button functionality
+        document.getElementById('clearButton').addEventListener('click', function () {
+            const clearMessage = "CLE@R";
+            console.log(`Publishing message: "${clearMessage}" to topic: ${commandTopic}`);
+            client.publish(commandTopic, clearMessage, { qos: 0, retain: false }, function (error) {
+                if (error) {
+                    console.error('Error publishing clear message:', error);
+                } else {
+                    console.log('Clear message sent successfully');
+                }
+            });
+        });
+
+        // Logout button functionality
+        document.getElementById('logoutButton').addEventListener('click', function () {
+            localStorage.removeItem('loggedInUser'); // Remove user session
+            window.location.href = 'index.html'; // Redirect to login page
+        });
+    </script>
+</body>
+</html>
