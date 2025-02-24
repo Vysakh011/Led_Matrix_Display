@@ -32,11 +32,14 @@
         }
         input, button {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 10px 0;
             border-radius: 5px;
             border: 1px solid #ccc;
             font-size: 16px;
+        }
+        input {
+            box-sizing: border-box;
         }
         button {
             background: #667eea;
@@ -56,8 +59,14 @@
         .logout-btn {
             background: red;
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             right: 20px;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+        .logout-btn:hover {
+            background: darkred;
         }
         table {
             width: 100%;
