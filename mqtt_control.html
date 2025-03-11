@@ -6,7 +6,6 @@
     <title>MQTT Control & Sensor Data</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> <!-- Include MQTT.js -->
     <style>
-        /* General Styling */
         body {
             font-family: Arial, sans-serif;
             background: linear-gradient(to right, #6a11cb, #2575fc);
@@ -15,29 +14,23 @@
             margin: 0;
             padding: 0;
         }
-
-        /* Main Container (Now Responsive) */
         .container {
             background: white;
             color: black;
-            max-width: 90%;  /* Mobile-friendly */
-            width: 400px;  /* Default width */
+            max-width: 90%;
+            width: 400px;
             margin: 30px auto;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
-
         h1 {
             font-size: 22px;
             margin-bottom: 10px;
         }
-
         label {
             font-weight: bold;
         }
-
-        /* Input & Buttons */
         #message {
             width: calc(100% - 20px);
             padding: 10px;
@@ -46,7 +39,6 @@
             border-radius: 5px;
             text-align: center;
         }
-
         button {
             width: 100%;
             padding: 10px;
@@ -56,49 +48,38 @@
             border-radius: 5px;
             font-size: 16px;
         }
-
         #sendButton {
             background: #3b82f6;
             color: white;
         }
-
         #sendButton:hover {
             background: #2563eb;
         }
-
         #clearButton {
             background: #f44336;
             color: white;
         }
-
         #clearButton:hover {
             background: #d32f2f;
         }
-
-        /* Sensor Data Table */
         table {
             width: 100%;
             margin-top: 20px;
             border-collapse: collapse;
         }
-
         table, th, td {
             border: 1px solid #ddd;
         }
-
         th {
             background: #3b82f6;
             color: white;
             padding: 10px;
         }
-
         td {
             padding: 10px;
             text-align: center;
             background: #f9f9f9;
         }
-
-        /* Logout Button Fix */
         .logout-btn {
             background: red;
             color: white;
@@ -110,31 +91,25 @@
             border-radius: 5px;
             border: none;
             cursor: pointer;
-            width: auto; /* Fix: Remove full-width stretch */
-            display: inline-block; /* Ensures it doesn't stretch */
+            width: auto;
+            display: inline-block;
         }
-
         .logout-btn:hover {
             background: darkred;
         }
-
-        /* Responsive Design */
         @media (max-width: 600px) {
             .container {
                 max-width: 95%;
                 width: auto;
                 padding: 15px;
             }
-            
             h1 {
                 font-size: 20px;
             }
-            
             button {
                 font-size: 14px;
                 padding: 8px;
             }
-
             .logout-btn {
                 font-size: 12px;
                 padding: 8px 12px;
@@ -173,26 +148,26 @@
         </table>
     </div>
 
-    <!-- Logout Button -->
     <button id="logoutButton" class="logout-btn">Logout</button>
 
     <script>
-        // Check if the user is logged in
         if (!localStorage.getItem('loggedInUser')) {
-            window.location.href = 'index.html'; // Redirect if not logged in
+            window.location.href = 'index.html';
         }
 
-        // MQTT Configuration
-        const brokerUrl = "wss://test.mosquitto.org:8081/mqtt"; // WebSocket connection
-        const clientId = "test569ttgg";  // Unique Client ID
-        const commandTopic = "ece/diFJBNOUIFOVSKJIGWIGJ"; // Topic for commands
-        const sensorTopic = "ece/sensorDataujndubd"; // Topic for sensor data
+        const brokerUrl = "wss://test.mosquitto.org:8081/mqtt";
+        const clientId = "client_" + Math.random().toString(16).substr(2, 8); // Unique ID for each device
+        const commandTopic = "ece/diFJBNOUIFOVSKJIGWIGJ";
+        const sensorTopic = "ece/sensorDataujndubd";
 
-        // Create MQTT client
-        const client = mqtt.connect(brokerUrl, { clientId: clientId, clean: true });
+        const client = mqtt.connect(brokerUrl, {
+            clientId: clientId,
+            clean: false,  // Keeps the session alive
+            reconnectPeriod: 1000 // Auto-reconnect every 1 sec if disconnected
+        });
 
         client.on('connect', function () {
-            console.log('Connected to MQTT broker');
+            console.log(`Connected as ${clientId}`);
             client.subscribe(sensorTopic, function (err) {
                 if (err) {
                     console.error('Failed to subscribe:', err);
@@ -202,16 +177,12 @@
             });
         });
 
-        // Handle incoming sensor messages
         client.on('message', function (topic, message) {
             if (topic === sensorTopic) {
                 try {
                     const data = JSON.parse(message.toString());
-
-                    // Log received data
                     console.log("Received Sensor Data:", data);
 
-                    // Update sensor values
                     document.getElementById('temp').innerText = data.temperature ? `${data.temperature} °C` : "--";
                     document.getElementById('pressure').innerText = data.pressure ? `${data.pressure} hPa` : "--";
                     document.getElementById('altitude').innerText = data.altitude ? `${data.altitude} m` : "--";
@@ -223,39 +194,40 @@
             }
         });
 
-        // Form submission to send messages
         document.getElementById('mqttForm').addEventListener('submit', function (e) {
             e.preventDefault();
-            const message = document.getElementById('message').value;
-            if (message.trim() !== "") {
-                console.log(`Publishing message: "${message}" to topic: ${commandTopic}`);
+            const message = document.getElementById('message').value.trim();
+            if (message !== "") {
+                console.log(`Publishing: "${message}"`);
                 client.publish(commandTopic, message, { qos: 0, retain: false }, function (error) {
-                    if (error) {
-                        console.error('Error publishing message:', error);
-                    } else {
-                        console.log('Message sent successfully');
-                    }
+                    if (error) console.error('Publish error:', error);
                 });
             }
         });
 
-        // CLEAR button functionality
         document.getElementById('clearButton').addEventListener('click', function () {
             const clearMessage = "CLE@R";
-            console.log(`Publishing message: "${clearMessage}" to topic: ${commandTopic}`);
+            console.log(`Publishing clear message`);
             client.publish(commandTopic, clearMessage, { qos: 0, retain: false }, function (error) {
-                if (error) {
-                    console.error('Error publishing clear message:', error);
-                } else {
-                    console.log('Clear message sent successfully');
-                }
+                if (error) console.error('Clear message error:', error);
             });
         });
 
-        // Logout button functionality
         document.getElementById('logoutButton').addEventListener('click', function () {
-            localStorage.removeItem('loggedInUser'); // Remove user session
-            window.location.href = 'index.html'; // Redirect to login page
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+        });
+
+        client.on('error', function (error) {
+            console.error("MQTT Error:", error);
+        });
+
+        client.on('reconnect', function () {
+            console.log("Reconnecting...");
+        });
+
+        client.on('offline', function () {
+            console.log("MQTT Client Offline");
         });
     </script>
 </body>
