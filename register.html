@@ -1,116 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Register</title>
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#764ba2">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <!-- Styles -->
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #667eea, #764ba2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .register-container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 300px;
-            margin: 20px;
-        }
-        h2 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-        input {
-            width: 90%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            outline: none;
-            font-size: 16px;
-        }
-        button {
-            background: #667eea;
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            width: 100%;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background: #5a67d8;
-        }
-        p {
-            margin-top: 10px;
-            color: #555;
-        }
-        a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
-    <script>
-        function register() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+<!-- Add Firebase SDK to your <head> -->
+<script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
 
-            let users = JSON.parse(localStorage.getItem('users')) || {};
-            if (users[username]) {
-                alert('Username already exists!');
-                return;
-            }
+<script>
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
-            users[username] = password;
-            localStorage.setItem('users', JSON.stringify(users));
-            alert('Registration successful! Please log in.');
-            window.location.href = 'index.html'; // Redirect to login page
-        }
-    </script>
-</head>
-<body>
-    <div class="register-container">
-        <h2>Register</h2>
-        <input type="text" id="username" placeholder="Username" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <button onclick="register()">Register</button>
-        <p>Already have an account? <a href="index.html">Login</a></p>
-    </div>
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
 
-    <script>
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful');
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
-</body>
-</html>
+  function register() {
+    const email = document.getElementById('username').value + "@yourdomain.com"; // Or use actual email field
+    const password = document.getElementById('password').value;
+
+    firebase.auth().createUserWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        // User created but not approved yet
+        alert('Registration submitted for approval!');
+        window.location.href = 'index.html';
+      })
+      .catch((error) => {
+        alert(error.message);
+      });
+  }
+</script>
