@@ -1,26 +1,156 @@
-function login() {
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-  const email = username + "@yourdomain.com"; // Match registration format
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .login-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+            margin: 20px;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        p {
+            margin-top: 10px;
+            color: #555;
+        }
+        a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        #error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        #installBtn {
+            display: none;
+            background: #4CAF50;
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        // Firebase config - MUST MATCH CONFIG IN register.html
+        const firebaseConfig = {
+            apiKey: "AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ12345678",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef"
+        };
 
-  firebase.auth().signInWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      // Check if user is approved (in Firestore)
-      const db = firebase.firestore();
-      db.collection("approvedUsers").doc(userCredential.user.uid).get()
-        .then((doc) => {
-          if (doc.exists) {
-            // User is approved
-            localStorage.setItem('loggedInUser', username);
-            window.location.href = 'mqtt_control.html';
-          } else {
-            // User not approved
-            firebase.auth().signOut();
-            alert('Your account is pending approval');
-          }
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = '';
+
+            if (!username || !password) {
+                errorElement.textContent = 'Username and password are required';
+                return;
+            }
+
+            const email = `${username}@yourdomain.com`; // Must match registration format
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Check if user is approved
+                    const db = firebase.firestore();
+                    return db.collection("approvedUsers").doc(userCredential.user.uid).get();
+                })
+                .then((doc) => {
+                    if (doc.exists) {
+                        // Successful login
+                        localStorage.setItem('loggedInUser', doc.data().username);
+                        window.location.href = 'mqtt_control.html';
+                    } else {
+                        // Not approved yet
+                        firebase.auth().signOut();
+                        errorElement.textContent = 'Your account is pending admin approval';
+                    }
+                })
+                .catch((error) => {
+                    console.error("Login error:", error);
+                    errorElement.textContent = error.message.replace('Firebase: ', '');
+                });
+        }
+
+        // PWA Installation prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'block';
         });
-    })
-    .catch((error) => {
-      alert(error.message);
-    });
-}
+
+        function installApp() {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted install');
+                }
+                deferredPrompt = null;
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="login()">Login</button>
+        <button id="installBtn" onclick="installApp()">Install App</button>
+        <div id="error-message"></div>
+        <p>Don't have an account? <a href="register.html">Register</a></p>
+    </div>
+</body>
+</html>
