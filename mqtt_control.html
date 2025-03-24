@@ -119,6 +119,20 @@
         .history-item:last-child {
             border-bottom: none;
         }
+        #connectionStatus {
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
         @media (max-width: 600px) {
             .container {
                 max-width: 95%;
@@ -144,6 +158,7 @@
 <body>
     <div class="container">
         <h1>Message via MQTT</h1>
+        <div id="connectionStatus" class="disconnected">Disconnected</div>
         
         <form id="mqttForm">
             <label for="message">Enter Message:</label>
@@ -182,55 +197,137 @@
             window.location.href = 'index.html';
         }
 
-        //const brokerUrl = "wss://test.mosquitto.org:8081/mqtt"; 
-        const brokerUrl = "wss://broker.hivemq.com:8884/mqtt"; 
-        //const brokerUrl = "wss://mqtt.eclipseprojects.io:443/mqtt";
-        const clientId = "client_" + Math.random().toString(16).substr(2, 8);
+        // Broker configuration with synchronized failover
+        const brokerConfigs = [
+            { 
+                name: "HiveMQ",
+                wsUrl: "wss://broker.hivemq.com:8884/mqtt",
+                tcpUrl: "broker.hivemq.com",
+                tcpPort: 1883
+            },
+            { 
+                name: "Mosquitto",
+                wsUrl: "wss://test.mosquitto.org:8081/mqtt",
+                tcpUrl: "test.mosquitto.org",
+                tcpPort: 1883
+            },
+            { 
+                name: "Eclipse",
+                wsUrl: "wss://mqtt.eclipseprojects.io:443/mqtt",
+                tcpUrl: "mqtt.eclipseprojects.io",
+                tcpPort: 443
+            }
+        ];
+        
+        let currentBrokerIndex = 0;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 3;
+        
+        const clientId = "webclient_" + Math.random().toString(16).substr(2, 8);
         const commandTopic = "ece/diFJBNOUIFOVSKJIGWIGJ";
         const sensorTopic = "ece/sensorDataujndubd";
+        const brokerSyncTopic = "ece/brokerSync";
         const messageHistory = [];
+        
+        let client = null;
+        let currentBroker = null;
+        
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = connected ? 
+                `Connected to ${currentBroker.name}` : 'Disconnected';
+            statusElement.className = connected ? 'connected' : 'disconnected';
+        }
+        
+        function connectToBroker() {
+            if (currentBrokerIndex >= brokerConfigs.length) {
+                currentBrokerIndex = 0; // Wrap around to first broker
+                reconnectAttempts = 0;
+            }
+            
+            currentBroker = brokerConfigs[currentBrokerIndex];
+            console.log(`Attempting to connect to ${currentBroker.name} (${currentBroker.wsUrl})`);
+            updateConnectionStatus(false);
+            
+            if (client) {
+                client.end(); // Clean up previous connection
+            }
+            
+            client = mqtt.connect(currentBroker.wsUrl, {
+                clientId: clientId,
+                clean: false,
+                reconnectPeriod: 1000
+            });
+            
+            client.on('connect', function () {
+                console.log(`Connected to ${currentBroker.name}`);
+                updateConnectionStatus(true);
+                reconnectAttempts = 0;
+                
+                // Subscribe to sensor topic
+                client.subscribe(sensorTopic, function (err) {
+                    if (err) {
+                        console.error('Failed to subscribe:', err);
+                    } else {
+                        console.log(`Subscribed to ${sensorTopic}`);
+                    }
+                });
+                
+                // Publish which broker we're connected to
+                const syncMessage = JSON.stringify({
+                    brokerIndex: currentBrokerIndex,
+                    brokerName: currentBroker.name,
+                    timestamp: new Date().toISOString()
+                });
+                client.publish(brokerSyncTopic, syncMessage, { qos: 1 });
+            });
+            
+            client.on('message', function (topic, message) {
+                if (topic === sensorTopic) {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        console.log("Received Sensor Data:", data);
 
-        const client = mqtt.connect(brokerUrl, {
-            clientId: clientId,
-            clean: false,
-            reconnectPeriod: 1000
-        });
+                        document.getElementById('temp').innerText = data.temperature ? `${data.temperature.toFixed(1)} °C` : "--";
+                        document.getElementById('pressure').innerText = data.pressure ? `${data.pressure.toFixed(1)} hPa` : "--";
+                        document.getElementById('altitude').innerText = data.altitude ? `${data.altitude.toFixed(1)} m` : "--";
+                        document.getElementById('weather').innerText = data.weather || "--";
 
-        client.on('connect', function () {
-            console.log(`Connected as ${clientId}`);
-            client.subscribe(sensorTopic, function (err) {
-                if (err) {
-                    console.error('Failed to subscribe:', err);
-                } else {
-                    console.log(`Subscribed to ${sensorTopic}`);
+                    } catch (error) {
+                        console.error("Error parsing sensor data:", error);
+                    }
                 }
             });
-        });
-
-        client.on('message', function (topic, message) {
-            if (topic === sensorTopic) {
-                try {
-                    const data = JSON.parse(message.toString());
-                    console.log("Received Sensor Data:", data);
-
-                    // Update the table with sensor data
-                    document.getElementById('temp').innerText = data.temperature ? `${data.temperature.toFixed(1)} °C` : "--";
-                    document.getElementById('pressure').innerText = data.pressure ? `${data.pressure.toFixed(1)} hPa` : "--";
-                    document.getElementById('altitude').innerText = data.altitude ? `${data.altitude.toFixed(1)} m` : "--";
-                    document.getElementById('weather').innerText = data.weather || "--";
-
-                } catch (error) {
-                    console.error("Error parsing sensor data:", error);
+            
+            client.on('error', function (error) {
+                console.error("MQTT Error:", error);
+                updateConnectionStatus(false);
+            });
+            
+            client.on('close', function () {
+                console.log("Connection closed");
+                updateConnectionStatus(false);
+            });
+            
+            client.on('offline', function () {
+                console.log("Client offline");
+                updateConnectionStatus(false);
+                reconnectAttempts++;
+                
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    console.log(`Max attempts reached for ${currentBroker.name}. Trying next broker.`);
+                    currentBrokerIndex++;
+                    reconnectAttempts = 0;
+                    setTimeout(connectToBroker, 5000);
                 }
-            }
-        });
-
+            });
+        }
+        
         function addToHistory(message) {
             const now = new Date();
             const timestamp = now.toLocaleTimeString();
             messageHistory.unshift({message, timestamp});
             
-            // Update history display
             const historyContainer = document.getElementById('messageHistory');
             historyContainer.innerHTML = '<h3>Message History</h3>';
             
@@ -242,32 +339,37 @@
             });
         }
 
+        // Initial connection
+        connectToBroker();
+
         document.getElementById('mqttForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const messageInput = document.getElementById('message');
             const message = messageInput.value.trim();
             
-            if (message !== "") {
+            if (message !== "" && client && client.connected) {
                 client.publish(commandTopic, message, { qos: 0, retain: false });
                 addToHistory(message);
-                messageInput.value = ""; // Clear input field
+                messageInput.value = "";
+            } else {
+                alert("Not connected to MQTT broker. Please wait...");
             }
         });
 
         document.getElementById('clearButton').addEventListener('click', function () {
             const clearMessage = "CLE@R";
-            client.publish(commandTopic, clearMessage, { qos: 0, retain: false });
-            addToHistory("CLEAR (Display Reset)");
-            document.getElementById('message').value = ""; // Clear input field
+            if (client && client.connected) {
+                client.publish(commandTopic, clearMessage, { qos: 0, retain: false });
+                addToHistory("CLEAR (Display Reset)");
+                document.getElementById('message').value = "";
+            } else {
+                alert("Not connected to MQTT broker. Please wait...");
+            }
         });
 
         document.getElementById('logoutButton').addEventListener('click', function () {
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
-        });
-
-        client.on('error', function (error) {
-            console.error("MQTT Error:", error);
         });
     </script>
 </body>
