@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Register</title>
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- Styles -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,6 +21,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         .register-container {
             background: white;
@@ -21,6 +30,7 @@
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
             width: 300px;
+            margin: 20px;
         }
         h2 {
             margin-bottom: 20px;
@@ -33,6 +43,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             outline: none;
+            font-size: 16px;
         }
         button {
             background: #667eea;
@@ -86,5 +97,20 @@
         <button onclick="register()">Register</button>
         <p>Already have an account? <a href="index.html">Login</a></p>
     </div>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
