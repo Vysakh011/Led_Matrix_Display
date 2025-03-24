@@ -1,33 +1,131 @@
-<!-- Add Firebase SDK to your <head> -->
-<script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Register</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .register-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+            margin: 20px;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        p {
+            margin-top: 10px;
+            color: #555;
+        }
+        a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        #error-message {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        // Firebase config - REPLACE WITH YOUR ACTUAL CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6PNKDBie9WY34pfB6Dwli8YnVoqrBdJA",
+            authDomain: "ece-noticeboard.firebaseapp.com",
+            projectId: "ece-noticeboard",
+            storageBucket: "ece-noticeboard.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:609926118581:web:9d5250464af05dfa2312fc"
+        };
 
-<script>
-  // Firebase configuration
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
 
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
+        function register() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = '';
 
-  function register() {
-    const email = document.getElementById('username').value + "@yourdomain.com"; // Or use actual email field
-    const password = document.getElementById('password').value;
+            if (!username || !password) {
+                errorElement.textContent = 'Username and password are required';
+                return;
+            }
 
-    firebase.auth().createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        // User created but not approved yet
-        alert('Registration submitted for approval!');
-        window.location.href = 'index.html';
-      })
-      .catch((error) => {
-        alert(error.message);
-      });
-  }
-</script>
+            const email = `${username}@yourdomain.com`; // Custom email format
+
+            // Create user in Firebase Auth
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Add to pending approvals in Firestore
+                    const db = firebase.firestore();
+                    return db.collection("pendingUsers").doc(userCredential.user.uid).set({
+                        username: username,
+                        email: email,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                })
+                .then(() => {
+                    alert('Registration submitted for admin approval. You\'ll receive an email when approved.');
+                    firebase.auth().signOut();
+                    window.location.href = 'index.html';
+                })
+                .catch((error) => {
+                    console.error("Registration error:", error);
+                    errorElement.textContent = error.message.replace('Firebase: ', '');
+                });
+        }
+    </script>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Register</h2>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="register()">Register</button>
+        <div id="error-message"></div>
+        <p>Already have an account? <a href="index.html">Login</a></p>
+    </div>
+</body>
+</html>
