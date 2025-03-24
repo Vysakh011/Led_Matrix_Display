@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login</title>
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#764ba2">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- Styles -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,6 +21,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         .login-container {
             background: white;
@@ -23,6 +30,7 @@
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
             width: 300px;
+            margin: 20px;
         }
         h2 {
             margin-bottom: 20px;
@@ -35,6 +43,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             outline: none;
+            font-size: 16px;
         }
         button {
             background: #667eea;
@@ -61,6 +70,11 @@
         a:hover {
             text-decoration: underline;
         }
+        #installBtn {
+            display: none;
+            background: #4CAF50;
+            margin-top: 10px;
+        }
     </style>
     <script>
         function login() {
@@ -85,7 +99,44 @@
         <input type="text" id="username" placeholder="Username" required>
         <input type="password" id="password" placeholder="Password" required>
         <button onclick="login()">Login</button>
+        <button id="installBtn">Install App</button>
         <p>Don't have an account? <a href="register.html">Register</a></p>
     </div>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        // Install prompt handling
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block';
+            
+            installBtn.addEventListener('click', () => {
+                installBtn.style.display = 'none';
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            });
+        });
+    </script>
 </body>
 </html>
