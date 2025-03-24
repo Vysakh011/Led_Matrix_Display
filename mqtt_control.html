@@ -210,6 +210,7 @@
     <button id="logoutButton" class="logout-btn">Logout</button>
 
     <script>
+        // Check authentication
         if (!localStorage.getItem('loggedInUser')) {
             window.location.href = 'index.html';
         }
@@ -248,8 +249,183 @@
             });
         });
 
-        // Rest of your existing MQTT code remains the same...
-        // [Keep all the existing MQTT JavaScript code from your original file]
+        // MQTT Configuration
+        const brokerConfigs = [
+            { 
+                name: "HiveMQ",
+                wsUrl: "wss://broker.hivemq.com:8884/mqtt",
+                tcpUrl: "broker.hivemq.com",
+                tcpPort: 1883
+            },
+            { 
+                name: "Mosquitto",
+                wsUrl: "wss://test.mosquitto.org:8081/mqtt",
+                tcpUrl: "test.mosquitto.org",
+                tcpPort: 1883
+            },
+            { 
+                name: "Eclipse",
+                wsUrl: "wss://mqtt.eclipseprojects.io:443/mqtt",
+                tcpUrl: "mqtt.eclipseprojects.io",
+                tcpPort: 443
+            }
+        ];
+        
+        let currentBrokerIndex = 0;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 3;
+        
+        const clientId = "webclient_" + Math.random().toString(16).substr(2, 8);
+        const commandTopic = "ece/diFJBNOUIFOVSKJIGWIGJ";
+        const sensorTopic = "ece/sensorDataujndubd";
+        const brokerSyncTopic = "ece/brokerSync";
+        const messageHistory = [];
+        
+        let client = null;
+        let currentBroker = null;
+        
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = connected ? 
+                `Connected to ${currentBroker.name}` : 'Disconnected';
+            statusElement.className = connected ? 'connected' : 'disconnected';
+        }
+        
+        function connectToBroker() {
+            if (currentBrokerIndex >= brokerConfigs.length) {
+                currentBrokerIndex = 0; // Wrap around to first broker
+                reconnectAttempts = 0;
+            }
+            
+            currentBroker = brokerConfigs[currentBrokerIndex];
+            console.log(`Attempting to connect to ${currentBroker.name} (${currentBroker.wsUrl})`);
+            updateConnectionStatus(false);
+            
+            if (client) {
+                client.end(); // Clean up previous connection
+            }
+            
+            client = mqtt.connect(currentBroker.wsUrl, {
+                clientId: clientId,
+                clean: false,
+                reconnectPeriod: 1000
+            });
+            
+            client.on('connect', function () {
+                console.log(`Connected to ${currentBroker.name}`);
+                updateConnectionStatus(true);
+                reconnectAttempts = 0;
+                
+                // Subscribe to sensor topic
+                client.subscribe(sensorTopic, function (err) {
+                    if (err) {
+                        console.error('Failed to subscribe:', err);
+                    } else {
+                        console.log(`Subscribed to ${sensorTopic}`);
+                    }
+                });
+                
+                // Publish which broker we're connected to
+                const syncMessage = JSON.stringify({
+                    brokerIndex: currentBrokerIndex,
+                    brokerName: currentBroker.name,
+                    timestamp: new Date().toISOString()
+                });
+                client.publish(brokerSyncTopic, syncMessage, { qos: 1 });
+            });
+            
+            client.on('message', function (topic, message) {
+                if (topic === sensorTopic) {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        console.log("Received Sensor Data:", data);
+
+                        document.getElementById('temp').innerText = data.temperature ? `${data.temperature.toFixed(1)} °C` : "--";
+                        document.getElementById('pressure').innerText = data.pressure ? `${data.pressure.toFixed(1)} hPa` : "--";
+                        document.getElementById('altitude').innerText = data.altitude ? `${data.altitude.toFixed(1)} m` : "--";
+                        document.getElementById('weather').innerText = data.weather || "--";
+
+                    } catch (error) {
+                        console.error("Error parsing sensor data:", error);
+                    }
+                }
+            });
+            
+            client.on('error', function (error) {
+                console.error("MQTT Error:", error);
+                updateConnectionStatus(false);
+            });
+            
+            client.on('close', function () {
+                console.log("Connection closed");
+                updateConnectionStatus(false);
+            });
+            
+            client.on('offline', function () {
+                console.log("Client offline");
+                updateConnectionStatus(false);
+                reconnectAttempts++;
+                
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    console.log(`Max attempts reached for ${currentBroker.name}. Trying next broker.`);
+                    currentBrokerIndex++;
+                    reconnectAttempts = 0;
+                    setTimeout(connectToBroker, 5000);
+                }
+            });
+        }
+        
+        function addToHistory(message) {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+            messageHistory.unshift({message, timestamp});
+            
+            const historyContainer = document.getElementById('messageHistory');
+            historyContainer.innerHTML = '<h3>Message History</h3>';
+            
+            messageHistory.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `<strong>[${item.timestamp}]</strong> ${item.message}`;
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        // Initial connection
+        connectToBroker();
+
+        // Form submission handler
+        document.getElementById('mqttForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const messageInput = document.getElementById('message');
+            const message = messageInput.value.trim();
+            
+            if (message !== "" && client && client.connected) {
+                client.publish(commandTopic, message, { qos: 0, retain: false });
+                addToHistory(message);
+                messageInput.value = "";
+            } else {
+                alert("Not connected to MQTT broker. Please wait...");
+            }
+        });
+
+        // Clear button handler
+        document.getElementById('clearButton').addEventListener('click', function () {
+            const clearMessage = "CLE@R";
+            if (client && client.connected) {
+                client.publish(commandTopic, clearMessage, { qos: 0, retain: false });
+                addToHistory("CLEAR (Display Reset)");
+                document.getElementById('message').value = "";
+            } else {
+                alert("Not connected to MQTT broker. Please wait...");
+            }
+        });
+
+        // Logout button handler
+        document.getElementById('logoutButton').addEventListener('click', function () {
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+        });
     </script>
 </body>
 </html>
