@@ -1,3 +1,4 @@
+// sw.js - Service Worker
 const CACHE_NAME = 'mqtt-app-v1';
 const urlsToCache = [
   '/',
@@ -20,5 +21,3 @@ self.addEventListener('fetch', event => {
       .then(response => response || fetch(event.request))
   );
 });
-
-self.addEventListener('activate',
